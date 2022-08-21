@@ -4,18 +4,21 @@
 #include <algorithm>
 #include <unordered_set>
 #include <string>
-#include <sstream> // top copy string to vector
 #include "sudoku.h"
 #include <iterator>
 #include <chrono>
 
 /* Approach
  *
+ *    1. Simple backtracker
+ *    2. Mask 
+ *      - only loop through values that might be possible in a square
+ *
  * 
- * Timings 
+ * Timings (for 1 puzzle)
  *    1. Initial implementation == 4000 ms (4sec) (-O2)
  *    2. Checking only modified row/col/box = 600 ms (-O2)
- *    3. Using single dynamic array for values[9] which gets overwritten each time = 657ms (-O2)
+ *    3. (2) + Using single dynamic array for values[9] which gets overwritten each time = 657ms (-O2)
  *    4. Same as (2) but with -O3 = 570 ms
  *    
  *
@@ -38,9 +41,11 @@ class Sudoku{
     public:
         int size = 81;
         std::vector<int> grid = std::vector<int>(81, 0); // board 
-        std::unordered_set <int> constant_idx{}; // store index of values that don't change
+        //std::unordered_set <int> constant_idx{}; // store index of values that don't change
         int backtracks = 0;
         int counts = 0;
+
+        std::vector<int> allowed_values; // 9x9x9
 
 
         void solver(){
@@ -73,9 +78,9 @@ class Sudoku{
             // solve a grid (given as string)
             for(int i = 0; i < 81; i++){
                 grid[i] = grid_string[i] - '0';
-                if(grid_string[i] - '0' > 0){
+                /*if(grid_string[i] - '0' > 0){
                     constant_idx.insert(i);
-                }
+                }*/
             }
             /*for(int i : grid){
                 std::cout << i;
