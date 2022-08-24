@@ -190,12 +190,8 @@ class Sudoku{
             int box_idx = box[idx];
 
             std::vector<int> values_to_look_for (allowed_values[idx]);
-            /*std::cout << "looking for another occurance of: \n";
-            for(int v : values_to_look_for){
-                std::cout <<v<<" ";
-            }; std::cout << "\n";
-            */
 
+            // CHECK ROW
             int row_indices[9]{};
             int x = 0;
             for(int i = 0; i<81; i++){
@@ -204,11 +200,31 @@ class Sudoku{
                     x++;
                 }
             }
-            
+            // CHECK COL
+            int col_indices[9]{};
+            x = 0;
+            for(int i = 0; i<81; i++){
+                if(cols[i] == col_idx){
+                    col_indices[x] = i;
+                    x++;
+                }
+            }
+            // CHECK BOX
+            int box_indices[9]{};
+            x = 0;
+            for(int i = 0; i<81; i++){
+                if(box[i] == box_idx){
+                    box_indices[x] = i;
+                    x++;
+                }
+            }
+
             for(int i = 0; i<values_to_look_for.size(); i++){
                 int value = values_to_look_for[i];
                 bool value_found = false;
 
+                
+                // CHECK ROW
                 for(int r = 0; r < 9; r++){
                     if( (row_indices[r] != idx) & in(value, allowed_values[row_indices[r]]) ){
                         value_found=true;
@@ -218,7 +234,32 @@ class Sudoku{
                     grid[idx] = value;
                     std::cout << "found value that isn't in any other position in the row\n";
                 }
+
+                // CHECK COL
+                value_found = false;
+                for(int c = 0; c < 9; c++){
+                    if( (col_indices[c] != idx) & in(value, allowed_values[col_indices[c]]) ){
+                        value_found = true;
+                    }
+                }
+                if(value_found==false){
+                    grid[idx] = value;
+                }
+                
+                // CHECK BOX
+                value_found = false;
+                for(int c = 0; c < 9; c++){
+                    if( (box_indices[c] != idx) & in(value, allowed_values[box_indices[c]]) ){
+                        value_found = true;
+                    }
+                }
+                if(value_found==false){
+                    grid[idx] = value;
+                }
             }
+            
+
+
 
 
             //throw "Error";
@@ -436,7 +477,8 @@ int main(){
 
     Sudoku s;
     auto start = std::chrono::high_resolution_clock::now();
-    s.solve(test1);
+    //s.solve(test1);
+    s.solve(test2);
     // s.solve(test2);
     //s.test_checks(test1_s);
     auto stop = std::chrono::high_resolution_clock::now();
