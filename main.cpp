@@ -25,6 +25,8 @@
  *    2. Checking only modified row/col/box = 600 ms (-O2)
  *    3. (2) + Using single dynamic array for values[9] which gets overwritten each time = 657ms (-O2)
  *    4. Same as (2) but with -O3 = 570 ms
+ *    5. Rule 1 (place value if its the only one allowed in the cell) = 60 ms (-O3)
+ *    6. Rule 2.1 (check if a value isn't possible anywhere else in the row) = 30ms (-O3)
  *    
  *
  */
@@ -69,13 +71,14 @@ class Sudoku{
         };
 
         void print_grid(){
+            std::cout << "-------------------\n";
             for(int i = 0; i < 9; i++){
                 for(int k = 0; k < 9; k++){
                     std::cout << grid[(i*9)+k] << " ";
                 }
                 std::cout << "\n";
             }
-            std::cout << "-------------------------\n";
+            std::cout << "-------------------\n";
         };
 
         std::string solve(std::string grid_string){
@@ -98,7 +101,6 @@ class Sudoku{
             // Print after applying rules
             print_grid();
             std::cout << "\n\n";
-            //throw "Error";
 
             // Brute-force solver
             backtrack();
@@ -172,6 +174,56 @@ class Sudoku{
             }
         }
 
+        bool in(int value, std::vector<int> x){
+            return std::find(x.begin(), x.end(), value) != x.end();
+        }
+
+        void check_if_not_allowed_anywhere_else(int idx){
+            // if a value isn't allow anywhere else in the row/col/box
+            // it must be placed here
+            // 1. Get the values in the cell[idx]
+            // 2. Loop through cells in the row to find those values
+            // 3.   If they can't be found, fill them in here
+            // 4. Repeat for cols and boxes
+            int row_idx = idx_to_row(idx);
+            int col_idx = idx_to_col(idx);
+            int box_idx = box[idx];
+
+            std::vector<int> values_to_look_for (allowed_values[idx]);
+            /*std::cout << "looking for another occurance of: \n";
+            for(int v : values_to_look_for){
+                std::cout <<v<<" ";
+            }; std::cout << "\n";
+            */
+
+            int row_indices[9]{};
+            int x = 0;
+            for(int i = 0; i<81; i++){
+                if(rows[i] == row_idx){
+                    row_indices[x] = i;
+                    x++;
+                }
+            }
+            
+            for(int i = 0; i<values_to_look_for.size(); i++){
+                int value = values_to_look_for[i];
+                bool value_found = false;
+
+                for(int r = 0; r < 9; r++){
+                    if( (row_indices[r] != idx) & in(value, allowed_values[row_indices[r]]) ){
+                        value_found=true;
+                    }
+                }
+                if(value_found==false){
+                    grid[idx] = value;
+                    std::cout << "found value that isn't in any other position in the row\n";
+                }
+            }
+
+
+            //throw "Error";
+        }
+
         void smart_solve(){
             std::cout << "Smart solve.\n";
             // Apply the rules until no change happens
@@ -185,21 +237,22 @@ class Sudoku{
                 changes = 0;
                 clean_allowed_values();
                 // Print allowed values for each cell
-                for(int idx = 0; idx < allowed_values.size(); idx++){
+                /*for(int idx = 0; idx < allowed_values.size(); idx++){
                     std::cout << "idx: " << idx << " -- ";
                     for(int i = 0; i<allowed_values[idx].size(); i++){
                         std::cout << allowed_values[idx][i] << " ";
                     }
                     std::cout << "\n";
-                }
+                }*/
                 for(int idx = 0; idx < allowed_values.size(); idx++){
+                    // RULE 1 :: Add this value to the grid -- its the only possible value
                     if(allowed_values[idx].size() == 1){
-                        // RULE 1 :: Add this value to the grid -- its the only possible value
                         grid[idx] = allowed_values[idx][0];
                         changes++;
                         std::cout << "Adding only possible value (" << allowed_values[idx][0] << ") to grid @ " << idx << "\n";
                         allowed_values[idx] = std::vector<int>{};
                     }
+                    check_if_not_allowed_anywhere_else(idx);
                 }
                 //if(count > 1){break;}
                 std::cout << "Changes: "<< changes << "\n";
