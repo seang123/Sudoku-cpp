@@ -143,6 +143,47 @@ class Sudoku{
             return x;
         }
 
+
+        void clean_allowed_values_(int idx){
+            // Remove elements from av which can't in that idx position 
+            // but only for a given row/col/box
+
+
+            if(grid[idx] == 0){
+                int row_vals[9]{};
+                int col_vals[9]{};
+                int box_vals[9]{};
+                int row_idx = idx_to_row(idx);
+                int col_idx = idx_to_col(idx);
+                int box_idx = BOXS[idx];
+                for(int k = 0; k < 9; k++){
+                    if( (row_idx * 9) + k != idx)
+                        row_vals[k] = grid[(row_idx * 9) + k];
+                }
+                for(int k = 0; k < 9; k++){
+                    if( (k * 9) + k != idx)
+                        col_vals[k] = grid[(k * 9) + col_idx];
+                }
+                int x = 0;
+                for(int k = 0; k < 81; k++){
+                    if( BOXS[k] == box_idx ){
+                        if( k != idx){
+                            box_vals[x] = grid[k];
+                            x++;
+                        }
+                    }
+                }
+                for(int i = 0; i<9; i++){
+                    allowed_values[idx] = remove(allowed_values[idx], row_vals[i]);
+                    allowed_values[idx] = remove(allowed_values[idx], col_vals[i]);
+                    allowed_values[idx] = remove(allowed_values[idx], box_vals[i]);
+                }
+            }
+            else{
+                allowed_values[idx] = std::vector<int>{};
+            }
+        }
+
         void clean_allowed_values(){
             // Remove elements from av which can't be in that idx position
             
@@ -193,7 +234,8 @@ class Sudoku{
             return std::find(x.begin(), x.end(), value) != x.end();
         }
 
-        void check_rows(int idx){
+        int check_rows(int idx){
+            int changes=0;
             int row_idx = idx_to_row(idx);
             int col_idx = idx_to_col(idx);
             int cell_indices[9]{};
@@ -202,130 +244,67 @@ class Sudoku{
             }
             std::vector<int> row_values{};
             for(int i = 0; i < 9; i++){ // loop through cells in row
-                for(int k=0; k < allowed_values[i].size(); k++){ // loop through allowed values in cell
-                    if(allowed_values[cell_indices[i]].size() <= 0)
+                int cell_idx = cell_indices[i];
+                for(int k=0; k < allowed_values[cell_idx].size(); k++){ // loop through allowed values in cell
+                    if(allowed_values[cell_idx].size() <= 0)
                         continue;
-                    if(i != col_idx & allowed_values[i].size() > 0){ // if cell not current cell
-                        row_values.push_back(allowed_values[cell_indices[i]][k]); // add values to row_values
+                    if(i != col_idx & allowed_values[cell_idx].size() > 0){ // if cell not current cell
+                        row_values.push_back(allowed_values[cell_idx][k]); // add values to row_values
                     }
                 }
             }
-            std::cout << "Allowed values:\n";
+            /*std::cout << "Allowed values:\n";
             for(int i = 0; i < row_values.size(); i++){
                 std::cout << row_values[i] << " ";
             }; std::cout << "\n";
+            */
 
             for(int vv : allowed_values[idx]){
                 if( !in(vv, row_values) ){
                     grid[idx] = vv;
                     std::cout << "only location for value (" << vv << ") in row (" << row_idx << ") in cell (" << idx << ")\n";
                     clean_allowed_values();
+                    allowed_values[idx] = std::vector<int>{};
+                    changes++;
                 }
             }
+            if( changes > 1)
+                std::cout << "THERE SHOULDN'T BE MORE THAN 1 CHANGE\n";
+            return changes;
         }
 
-
-
-        void check_if_not_allowed_anywhere_else(int idx){
-            // if a value isn't allow anywhere else in the row/col/box
-            // it must be placed here
-            // 1. Get the values in the cell[idx]
-            // 2. Loop through cells in the row to find those values
-            // 3.   If they can't be found, fill them in here
-            // 4. Repeat for cols and boxes
+        int check_cols(int idx){
+            int changes = 0;
             int row_idx = idx_to_row(idx);
             int col_idx = idx_to_col(idx);
-            int box_idx = BOXS[idx];
-
-            std::vector<int> values_to_look_for (allowed_values[idx]);
-
-            if(values_to_look_for.size() == 0){
-                return;
+            int cell_indices[9]{};
+            for(int c = 0; c<9; c++){ // get cell idxs in col
+                cell_indices[c] = (c * 9) + col_idx;
             }
 
-            // CHECK ROW
-            int row_indices[9]{};
-            int x = 0;
-            for(int i = 0; i<81; i++){
-                if(ROWS[i] == row_idx){
-                    row_indices[x] = i;
-                    x++;
-                }
-            }
-
-            // CHECK COL
-            int col_indices[9]{};
-            x = 0;
-            for(int i = 0; i<81; i++){
-                if(COLS[i] == col_idx){
-                    col_indices[x] = i;
-                    x++;
-                }
-            }
-            // CHECK BOX
-            int box_indices[9]{};
-            x = 0;
-            for(int i = 0; i<81; i++){
-                if(BOXS[i] == box_idx){
-                    box_indices[x] = i;
-                    x++;
-                }
-            }
-
-            for(uint i = 0; i<values_to_look_for.size(); i++){
-                int value = values_to_look_for[i];
-                bool value_found = false;
-                bool value_found_row = false;
-                bool value_found_col = false;
-                bool value_found_box = false;
-                
-                // CHECK ROW
-                for(int r = 0; r < 9; r++){
-                    if( (row_indices[r] != idx) & in(value, allowed_values[row_indices[r]]) ){
-                        value_found=true;
-                        value_found_row=true;;
+            std::vector<int> col_values{};
+            for(int i = 0; i < 9; i++){
+                int cell_idx = cell_indices[i];
+                for(int k = 0; k < allowed_values[cell_idx].size(); k++){
+                    if(i != row_idx & allowed_values[cell_idx].size() > 0){
+                        col_values.push_back(allowed_values[cell_idx][k]);
                     }
                 }
-                /*if(value_found==false){
-                    grid[idx] = value;
-                    std::cout << "found value (" << value << ") that isn't possible anywhere else in the row - (" << idx << ")\n";
-                    //clean_allowed_values();
-                    continue;
-                }*/
-                // CHECK COL
-                value_found = false;
-                for(int c = 0; c < 9; c++){
-                    if( (col_indices[c] != idx) & in(value, allowed_values[col_indices[c]]) ){
-                        value_found = true;
-                        value_found_col=true;
-                    }
-                }
-                /*if(value_found==false){
-                    grid[idx] = value;
-                    std::cout << "found value (" << value << ") that isn't possible anywhere else in the col - (" << idx << ")\n";
-                    //clean_allowed_values();
-                    continue;
-                }*/
-                // CHECK BOX
-                value_found = false;
-                for(int c = 0; c < 9; c++){
-                    if( (box_indices[c] != idx) & in(value, allowed_values[box_indices[c]]) ){
-                        value_found = true;
-                        value_found_box=true;
-                    }
-                }
-                /*if(value_found==false){
-                    grid[idx] = value;
-                    //clean_allowed_values();
-                    continue;
-                }*/
-                if((value_found_row==false) & (value_found_col==false) & (value_found_box==false)){
-                    grid[idx] = value;
-                    std::cout << "found value (" << value << ") that isn't possible anywhere else in the row or col or box - (" << idx << ")\n";
-                    continue;
+            }
+            for(int vv : allowed_values[idx]){
+                if( !in(vv, col_values) ){
+                    grid[idx] = vv;
+                    std::cout << "only location for value (" << vv << ") in col (" << col_idx << ") in cell (" << idx << ")\n";
+                    allowed_values[idx] = std::vector<int>{};
+                    clean_allowed_values();
+                    changes++;
                 }
             }
+            if( changes > 1)
+                std::cout << "THERE SHOULDN'T BE MORE THAN 1 CHANGE\n";
+            return changes;
         }
+
 
 
         void smart_solve(){
@@ -337,12 +316,12 @@ class Sudoku{
             int count{};
             int changes{};
             do{
-                std::cout << "=+=+=+=+=+=+=+=+=+=+=+=+=+=\n";
+                //std::cout << "=+=+=+=+=+=+=+=+=+=+=+=+=+=\n";
                 count++;
                 changes = 0;
                 clean_allowed_values();
                 for(uint idx = 0; idx < allowed_values.size(); idx++){
-                    std::cout << "---------idx: " << idx << "---------\n";
+                    //std::cout << "---------idx: " << idx << "---------\n";
                     if( grid[idx] != 0 ){
                         continue;
                     }
@@ -354,12 +333,11 @@ class Sudoku{
                         allowed_values[idx] = std::vector<int>{};
                     }
                     // RULE 2
-                    //check_if_not_allowed_anywhere_else(idx);
-                    check_rows(idx);
-                    if(idx > 14)
-                        break;
+                    clean_allowed_values();
+                    changes = changes + check_rows(idx);
+                    changes = changes + check_cols(idx);
                 }
-                if(count > 0){break;}
+                //if(count > 0){break;}
                 std::cout << "Changes: "<< changes << "\n";
             }
             while(changes != 0);
@@ -540,8 +518,10 @@ int main(){
     std::string test = "000075400000000008080190000300001060000000034000068170204000603900000020530200000";
     std::string test_s = "693875412145632798782194356357421869816957234429368175274519683968743521531286947";
 
-    //std::string test   = "300000000050703008000028070700000043000000000003904105400300800100040000968000200";
-    //std::string test_s = "387419526259763418641528379716285943594631782823974165472396851135842697968157234";
+    /*
+    std::string test   = "300000000050703008000028070700000043000000000003904105400300800100040000968000200";
+    std::string test_s = "387419526259763418641528379716285943594631782823974165472396851135842697968157234";
+    */
 
 
     Sudoku s;
