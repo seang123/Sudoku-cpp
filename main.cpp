@@ -107,12 +107,9 @@ class Sudoku{
             smart_solve();
 
             // Print after applying rules
-            print_grid();
-            std::cout << "Smart solve complete\n";
-            if(validate() != 1){
+            /*if(!validate()){
                 throw std::logic_error("board is not valid after smart solve");
-            }
-            std::cout << "\n\n";
+            }*/
 
             // Brute-force solver
             backtrack();
@@ -144,45 +141,6 @@ class Sudoku{
         }
 
 
-        void clean_allowed_values_(int idx){
-            // Remove elements from av which can't in that idx position 
-            // but only for a given row/col/box
-
-
-            if(grid[idx] == 0){
-                int row_vals[9]{};
-                int col_vals[9]{};
-                int box_vals[9]{};
-                int row_idx = idx_to_row(idx);
-                int col_idx = idx_to_col(idx);
-                int box_idx = BOXS[idx];
-                for(int k = 0; k < 9; k++){
-                    if( (row_idx * 9) + k != idx)
-                        row_vals[k] = grid[(row_idx * 9) + k];
-                }
-                for(int k = 0; k < 9; k++){
-                    if( (k * 9) + k != idx)
-                        col_vals[k] = grid[(k * 9) + col_idx];
-                }
-                int x = 0;
-                for(int k = 0; k < 81; k++){
-                    if( BOXS[k] == box_idx ){
-                        if( k != idx){
-                            box_vals[x] = grid[k];
-                            x++;
-                        }
-                    }
-                }
-                for(int i = 0; i<9; i++){
-                    allowed_values[idx] = remove(allowed_values[idx], row_vals[i]);
-                    allowed_values[idx] = remove(allowed_values[idx], col_vals[i]);
-                    allowed_values[idx] = remove(allowed_values[idx], box_vals[i]);
-                }
-            }
-            else{
-                allowed_values[idx] = std::vector<int>{};
-            }
-        }
 
         void clean_allowed_values(){
             // Remove elements from av which can't be in that idx position
@@ -234,77 +192,89 @@ class Sudoku{
             return std::find(x.begin(), x.end(), value) != x.end();
         }
 
-        int check_rows(int idx){
-            int changes=0;
-            int row_idx = idx_to_row(idx);
-            int col_idx = idx_to_col(idx);
-            int cell_indices[9]{};
-            for(int c = 0; c<9; c++){ // get cell idxs in row
-                cell_indices[c] = (row_idx * 9) + c;
-            }
-            std::vector<int> row_values{};
-            for(int i = 0; i < 9; i++){ // loop through cells in row
-                int cell_idx = cell_indices[i];
-                for(int k=0; k < allowed_values[cell_idx].size(); k++){ // loop through allowed values in cell
-                    if(allowed_values[cell_idx].size() <= 0)
-                        continue;
-                    if(i != col_idx & allowed_values[cell_idx].size() > 0){ // if cell not current cell
-                        row_values.push_back(allowed_values[cell_idx][k]); // add values to row_values
+        bool check_box(int idx){
+            // Check if a value isn't possibel anywhere else in the square
+            
+            int box_idx = BOXS[idx];
+
+            std::vector<int> box_values;
+            for(int i = 0; i < 81; i++){
+                if(i == idx)
+                    continue;
+                if(BOXS[i] == box_idx){
+                    for(uint k = 0; k < allowed_values[i].size(); k++){
+                        box_values.push_back(allowed_values[i][k]);
                     }
                 }
             }
-            /*std::cout << "Allowed values:\n";
-            for(int i = 0; i < row_values.size(); i++){
-                std::cout << row_values[i] << " ";
-            }; std::cout << "\n";
-            */
 
-            for(int vv : allowed_values[idx]){
-                if( !in(vv, row_values) ){
+            for(uint v = 0; v < allowed_values[idx].size(); v++){
+                int vv = allowed_values[idx][v];
+                if( !in(vv, box_values) ){
                     grid[idx] = vv;
-                    std::cout << "only location for value (" << vv << ") in row (" << row_idx << ") in cell (" << idx << ")\n";
-                    clean_allowed_values();
-                    allowed_values[idx] = std::vector<int>{};
-                    changes++;
+                    return true;
                 }
             }
-            if( changes > 1)
-                std::cout << "THERE SHOULDN'T BE MORE THAN 1 CHANGE\n";
-            return changes;
+            return false;
         }
 
-        int check_cols(int idx){
-            int changes = 0;
+        bool check_col(int idx){
+            // Check if a value isn't possible anywhere else in the col
+            
             int row_idx = idx_to_row(idx);
             int col_idx = idx_to_col(idx);
-            int cell_indices[9]{};
-            for(int c = 0; c<9; c++){ // get cell idxs in col
-                cell_indices[c] = (c * 9) + col_idx;
-            }
 
-            std::vector<int> col_values{};
+            std::vector<int> col_values;
             for(int i = 0; i < 9; i++){
-                int cell_idx = cell_indices[i];
-                for(int k = 0; k < allowed_values[cell_idx].size(); k++){
-                    if(i != row_idx & allowed_values[cell_idx].size() > 0){
+                if( i == row_idx ){
+                    continue;
+                }
+                else{
+                    int cell_idx = (i * 9) + col_idx;
+                    for(uint k = 0; k < allowed_values[cell_idx].size(); k++){
                         col_values.push_back(allowed_values[cell_idx][k]);
                     }
                 }
             }
-            for(int vv : allowed_values[idx]){
+
+            for(uint v = 0; v < allowed_values[idx].size(); v++){
+                int vv = allowed_values[idx][v];
                 if( !in(vv, col_values) ){
                     grid[idx] = vv;
-                    std::cout << "only location for value (" << vv << ") in col (" << col_idx << ") in cell (" << idx << ")\n";
-                    allowed_values[idx] = std::vector<int>{};
-                    clean_allowed_values();
-                    changes++;
+                    return true;
                 }
             }
-            if( changes > 1)
-                std::cout << "THERE SHOULDN'T BE MORE THAN 1 CHANGE\n";
-            return changes;
+            return false;
         }
 
+        bool check_row(int idx){
+            // Check if a value isn't possible anywhere else in the row
+            
+            int row_idx = idx_to_row(idx);
+            int col_idx = idx_to_col(idx);
+
+            std::vector<int> row_values;
+            for(int i = 0; i < 9; i++){
+                if( i == col_idx ){
+                    continue;
+                }
+                else{
+                    int cell_idx = (row_idx * 9) + i;
+                    for(uint k = 0; k < allowed_values[cell_idx].size(); k++){
+                        row_values.push_back(allowed_values[cell_idx][k]);
+                    }
+                }
+            }
+
+            for(uint v = 0; v < allowed_values[idx].size(); v++){
+                int vv = allowed_values[idx][v];
+                if( !in(vv, row_values) ){
+                    grid[idx] = vv;
+                    return true;
+                }
+            }
+            return false;
+        }
 
 
         void smart_solve(){
@@ -312,35 +282,36 @@ class Sudoku{
             // Apply the rules until no change happens
             // If the board is complete exit, otherwise, backtrack
 
-
             int count{};
             int changes{};
             do{
-                //std::cout << "=+=+=+=+=+=+=+=+=+=+=+=+=+=\n";
                 count++;
                 changes = 0;
-                clean_allowed_values();
+
                 for(uint idx = 0; idx < allowed_values.size(); idx++){
-                    //std::cout << "---------idx: " << idx << "---------\n";
+                    clean_allowed_values();
                     if( grid[idx] != 0 ){
                         continue;
                     }
                     // RULE 1 :: Add this value to the grid -- its the only possible value
-                    if(allowed_values[idx].size() == 1){
+                    else if(allowed_values[idx].size() == 1){
                         grid[idx] = allowed_values[idx][0];
                         changes++;
-                        std::cout << "Adding only possible value (" << allowed_values[idx][0] << ") to grid @ " << idx << "\n";
                         allowed_values[idx] = std::vector<int>{};
                     }
-                    // RULE 2
-                    clean_allowed_values();
-                    changes = changes + check_rows(idx);
-                    changes = changes + check_cols(idx);
+                    else if(check_row(idx)){
+                        changes++;
+                    }
+                    else if(check_col(idx)){
+                        changes++;
+                    }
+                    else if(check_box(idx)){
+                        changes++;
+                    }
+
                 }
-                //if(count > 0){break;}
-                std::cout << "Changes: "<< changes << "\n";
-            }
-            while(changes != 0);
+            }while(changes != 0);
+
             std::cout << "Count: " << count << "\n";
 
         }
@@ -413,67 +384,16 @@ class Sudoku{
             return no_duplicates(values);
         }
 
-        bool are_rows_valid(){
-            int values[9]{}; 
-            int idx = 0;
-            int x = 0;
-            while (x <= 80){
-                for( int j=0;j<9;j++){
-                    values[idx] = grid[x+j];
-                    //*(values + idx) = grid[x+j];
-                    idx++;
-                }
-                if(!no_duplicates(values)){
-                    return false;
-                }
-                idx = 0;
-                x = x + 9;
-            }
-            return true;
-        }
-
-        bool are_cols_valid(){
-            int values[9]{};
-            int idx = 0;
-            int x = 0;
-            while( x < 9 ){
-                for( int i = 0; i < 9; i++ ){
-                    values[idx] = grid[i * 9 + x];
-                    //*(values + idx) = grid[i * 9 + x];
-                    idx++;
-                }
-                if(no_duplicates(values) == false){
-                    return false;
-                }
-                idx = 0;
-                x = x + 1;
-            }
-            return true;
-        }
-
-        bool are_boxes_valid(){
-            int values[9]{};
-            int idx = 0;
-            for( int i = 0; i < 9; i = i + 3){
-                for(int k = 0; k < 9; k = k + 3){
-                    for(int x = 0; x < 3; x++){
-                        for(int y = 0; y < 3; y++){
-                            values[idx] = grid[(i + x) * 9 + (k + y)];
-                            //*(values + idx) = grid[(i + x) * 9 + (k + y)];
-                            idx++;
-                        }
-                    }
-                    if(no_duplicates(values) == false){
-                        return false;
-                    }
-                    idx = 0;
-                }
-            }
-            return true;
-        }
-
         bool validate(){
-            return (are_rows_valid() & are_cols_valid() & are_boxes_valid());
+            // Check if board is valid
+            for(int i = 0; i < 81; i++){
+                bool r = is_row_valid(i);
+                bool c = is_col_valid(i);
+                bool b = is_box_valid(i);
+                if( !r | !c | !b )
+                    return false;
+            }
+            return true;
         }
 
         bool is_valid(int idx){
