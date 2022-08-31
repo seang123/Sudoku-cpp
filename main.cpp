@@ -29,7 +29,10 @@
  *    4. Same as (2) but with -O3 = 570 ms
  *    5. Rule 1 (place value if its the only one allowed in the cell) = 60 ms (-O3)
  *    6. Rule 2.1 (check if a value isn't possible anywhere else in the row) = 30ms (-O3)
+ *    7. Replacing the allowed_values unordered_map<int, vector> with an array = 1-2ms (-O3)
  *    
+ * TODO:
+ *    change allowed_values from unordered_map<int, vector> to array
  *
  */
 
@@ -46,6 +49,11 @@
 */
 
 
+// New allowed values array
+// [[1,2,3,4,5,6,7,8,9], [0,2,0,0,5,6,0,8,0]]  - zero if a value isn't allowed, value otherwise
+
+
+
 class Sudoku{
     public:
         int size = 81;
@@ -55,7 +63,7 @@ class Sudoku{
         int backtracks = 0;
         int counts = 0;
 
-        std::unordered_map <int, std::vector<int> > allowed_values; // map{ idx->allowed_values }
+        int allowed_values[81][9];
 
         void solver(){
             // Read a board from the text file
@@ -94,15 +102,15 @@ class Sudoku{
             // solve a grid (given as string)
             for(int i = 0; i < 81; i++){
                 grid[i] = grid_string[i] - '0';
-                std::vector<int> av {1, 2, 3, 4, 5, 6, 7, 8, 9}; 
-                allowed_values[i] = av;
-                //allowed_values[i] = remove(av, grid_string[i]-'0');
+                for(int k = 1; k<10; k++){
+                    allowed_values[i][k-1] = k;
+                }
             }
             
 
             // print board
-            //print_grid();
-            //std::cout << "\n\n";
+            print_grid();
+            std::cout << "\n\n";
 
             // Rule based solver
             smart_solve();
@@ -114,7 +122,7 @@ class Sudoku{
 
             // Brute-force solver
             backtrack();
-            //std::cout << "Backtracks: " << backtracks << "\n";
+            std::cout << "Backtracks: " << backtracks << "\n";
 
             std::stringstream ss;
             for(auto it = solution.begin(); it != solution.end(); it++){
@@ -131,14 +139,6 @@ class Sudoku{
         }
         int idx_to_col(int i){
             return (i % 9);
-        }
-
-        std::vector<int> remove(std::vector<int> x, int val){
-            // Remove the first instance of val from vector x
-            std::vector<int>::iterator position = std::find(x.begin(), x.end(), val);
-            if(position != x.end())
-                x.erase(position);
-            return x;
         }
 
 
@@ -188,89 +188,94 @@ class Sudoku{
                     }
 
                     // Remove the values from allowed list
-                    for(int i = 0; i<9; i++){
-                        allowed_values[idx] = remove(allowed_values[idx], row_vals[i]);
-                        allowed_values[idx] = remove(allowed_values[idx], col_vals[i]);
-                        allowed_values[idx] = remove(allowed_values[idx], box_vals[i]);
+                    for(int i = 0; i < 9; i++){
+                        const int row_value = row_vals[i];
+                        const int col_value = col_vals[i];
+                        const int box_value = box_vals[i];
+                        if(row_value > 0)
+                            allowed_values[idx][row_value-1] = 0;
+                        if(col_value > 0)
+                            allowed_values[idx][col_value-1] = 0;
+                        if(box_value > 0)
+                            allowed_values[idx][box_value-1] = 0;
                     }
                 }
                 else{
-                    allowed_values[idx] = std::vector<int>{};
+                    for(int i = 0; i < 9; i++){
+                        allowed_values[idx][i] = 0;
+                    }
                 }
             }
             
         }
 
         void clean_allowed_values(){
-            // Remove elements from av which can't be in that idx position
-            
-            // Loop through cells
-            // remove row/col/box elements from allowed_values(cell) 
-            
+
             for(int idx = 0; idx<81; idx++){
-                int row_vals[9]{};
-                int col_vals[9]{};
+                int row_vals[9]{}; // hold the values in the row of the current idx
+                int col_vals[9]{}; 
                 int box_vals[9]{};
 
                 if(grid[idx] == 0){
-                    int row_idx = idx_to_row(idx);
-                    int col_idx = idx_to_col(idx);
-                    int box_idx = BOXS[idx];
-                    for(int k=0;k<9;k++){
-                        row_vals[k] = grid[(row_idx * 9) + k];
+                    const int row_idx = ROWS[idx];
+                    const int col_idx = COLS[idx];
+                    const int box_idx = BOXS[idx];
+
+                    for(int i = 0; i < 9; i++){
+                        row_vals[i] = grid[(row_idx * 9) + i];
                     }
-                    for(int i = 0; i < 9; i++ ){
+                    for(int i = 0; i < 9; i++){
                         col_vals[i] = grid[(i * 9) + col_idx];
                     }
                     int x = 0;
-                    for(int i = 0; i<81; i++){
+                    for(int i = 0; i < 81; i++){
                         if(BOXS[i] == box_idx){
-                            box_vals[x] = grid[i];
+                            box_vals[i] = grid[i];
                             x++;
                         }
                     }
-
-                    // Remove the values from allowed list
-                    for(int i = 0; i<9; i++){
-                        allowed_values[idx] = remove(allowed_values[idx], row_vals[i]);
-                        allowed_values[idx] = remove(allowed_values[idx], col_vals[i]);
-                        allowed_values[idx] = remove(allowed_values[idx], box_vals[i]);
+                    for(int i = 0; i < 9; i++){
+                        const int row_value = row_vals[i];
+                        const int col_value = col_vals[i];
+                        const int box_value = box_vals[i];
+                        if(row_value > 0)
+                            allowed_values[idx][row_value-1] = 0;
+                        if(col_value > 0)
+                            allowed_values[idx][col_value-1] = 0;
+                        if(box_value > 0)
+                            allowed_values[idx][box_value-1] = 0;
                     }
                 }
                 else{
-                    // Grid has a value in it so remove all allowed values for that idx
-                    for(int i = 0; i<9; i++){
-                        allowed_values[idx] = std::vector<int>{};
+                    for(int i = 0; i < 9; i++){
+                        allowed_values[idx][i] = 0;
                     }
                 }
-
             }
         }
 
-        bool in(int value, std::vector<int> x){
-            return std::find(x.begin(), x.end(), value) != x.end();
-        }
 
         bool check_box(int idx){
             // Check if a value isn't possibel anywhere else in the square
             
             int box_idx = BOXS[idx];
 
-            std::vector<int> box_values;
+            int box_values[9]{};
             for(int i = 0; i < 81; i++){
                 if(i == idx)
                     continue;
                 if(BOXS[i] == box_idx){
-                    for(uint k = 0; k < allowed_values[i].size(); k++){
-                        box_values.push_back(allowed_values[i][k]);
+                    for(int k = 0; k < 9; k++){
+                        if(allowed_values[i][k] > 0){
+                            box_values[k] = 1;
+                        }
                     }
                 }
             }
-
-            for(uint v = 0; v < allowed_values[idx].size(); v++){
-                int vv = allowed_values[idx][v];
-                if( !in(vv, box_values) ){
-                    grid[idx] = vv;
+            for(int i = 0; i < 9; i++){
+                if(box_values[i] == 0 & allowed_values[idx][i] > 0){
+                    grid[idx] = i+1;
+                    //std::cout << "value (" << i+1 << ") only possible at (" << idx << ")\n";
                     return true;
                 }
             }
@@ -283,27 +288,40 @@ class Sudoku{
             int row_idx = idx_to_row(idx);
             int col_idx = idx_to_col(idx);
 
-            std::vector<int> col_values;
+            int col_values[9]{};
             for(int i = 0; i < 9; i++){
                 if( i == row_idx ){
                     continue;
                 }
                 else{
                     int cell_idx = (i * 9) + col_idx;
-                    for(uint k = 0; k < allowed_values[cell_idx].size(); k++){
-                        col_values.push_back(allowed_values[cell_idx][k]);
+                    for(int k = 0; k < 9; k++){
+                        if(allowed_values[cell_idx][k] > 0){
+                            col_values[k] = 1;
+                        }
                     }
                 }
             }
-
-            for(uint v = 0; v < allowed_values[idx].size(); v++){
-                int vv = allowed_values[idx][v];
-                if( !in(vv, col_values) ){
-                    grid[idx] = vv;
+            for(int i = 0; i < 9; i++){
+                if(col_values[i] == 0 & allowed_values[idx][i] > 0){
+                    grid[idx] = i+1;
+                    //std::cout << "value (" << i+1 << ") only possible at (" << idx << ")\n";
                     return true;
                 }
             }
+
             return false;
+        }
+
+        bool in(int value, int idx){
+            // check if value is present in allowed_values[idx]
+            return (allowed_values[idx][value-1] > 0);
+        }
+
+        void print_av(int idx){
+            for(int i = 0; i < 9; i++){
+                std::cout << allowed_values[idx][i] << " ";
+            }; std::cout << "\n";
         }
 
         bool check_row(int idx){
@@ -312,30 +330,52 @@ class Sudoku{
             int row_idx = idx_to_row(idx);
             int col_idx = idx_to_col(idx);
 
-            std::vector<int> row_values;
+            //std::vector<int> row_values;  // values possible in the row
+            int row_values[9]{};
             for(int i = 0; i < 9; i++){
                 if( i == col_idx ){
                     continue;
                 }
                 else{
                     int cell_idx = (row_idx * 9) + i;
-                    for(uint k = 0; k < allowed_values[cell_idx].size(); k++){
-                        row_values.push_back(allowed_values[cell_idx][k]);
+                    for(int k = 0; k < 9; k++){
+                        if(allowed_values[cell_idx][k] > 0){
+                            row_values[k] = 1;
+                        }
                     }
                 }
             }
-
-            for(uint v = 0; v < allowed_values[idx].size(); v++){
-                int vv = allowed_values[idx][v];
-                if( !in(vv, row_values) ){
-                    grid[idx] = vv;
-                    std::cout << "value (" << vv << ") only possible at (" << idx << ")\n";
+            for(int i = 0; i < 9; i++){
+                if(row_values[i] == 0 & allowed_values[idx][i] > 0){
+                    grid[idx] = i+1;
+                    //std::cout << "value (" << i+1 << ") only possible at (" << idx << ")\n";
                     return true;
                 }
             }
-            return false;
+           return false;
         }
 
+        int single_value(int idx){
+            int count = 0;
+            int value = 0;
+            for(int i = 0; i < 9; i++){
+                const int v = allowed_values[idx][i];
+                if(v > 0){
+                    value = v;
+                    count++;
+                }
+            }
+            if(count > 1)
+                return 0;
+            else
+                return value;
+        }
+
+        void remove_all(int idx){
+            for(int i = 0; i < 9; i++){
+                allowed_values[idx][i] = 0;
+            }
+        }
 
         void smart_solve(){
             //std::cout << "Smart solve.\n";
@@ -348,28 +388,40 @@ class Sudoku{
                 count++;
                 changes = 0;
 
-                for(uint idx = 0; idx < allowed_values.size(); idx++){
+                for(uint idx = 0; idx < 81; idx++){
+                    //clean_allowed_values();
                     clean_allowed_values_(idx);
+                    int single_value_ = single_value(idx);  // check if only one value is avail.
+                    /*for(int i = 0; i < 81; i++){
+                        std::cout << i << ">";
+                        for(int k = 0; k < 9; k++){
+                            std::cout << allowed_values[i][k] << " ";
+                        }; std::cout << "\n";
+                        if(i % 9 == 0 & i != 0)
+                            std::cout << "------------\n";
+                    }
+                    throw "Error";*/
+
                     if( grid[idx] != 0 ){
                         continue;
                     }
-                    else if(allowed_values[idx].size() == 1){
-                    // RULE 1 :: Add this value to the grid -- its the only possible value
-                        grid[idx] = allowed_values[idx][0];
+                    else if(single_value_ > 0){
+                        // RULE 1 :: Add this value to the grid -- its the only possible value
+                        grid[idx] = single_value_;
+                        allowed_values[idx][single_value_-1] = 0;
+                        //remove_all(idx);
                         changes++;
-                        std::cout << "filling only allowed value: " << allowed_values[idx][0] << " @ " << idx << "\n";
-                        allowed_values[idx] = std::vector<int>{};
+                        //std::cout << "filling in only allowed value " << single_value_ << "\n";
                     }
                     else if(check_row(idx)){
                         changes++;
                     }
-                    /*else if(check_col(idx)){
+                    else if(check_col(idx)){
                         changes++;
                     }
                     else if(check_box(idx)){
                         changes++;
-                    }*/
-
+                    }
                 }
             }while(changes != 0);
             //std::cout << "Count: " << count << "\n";
@@ -474,8 +526,7 @@ class Sudoku{
                 solution = (grid);
             }
             else{
-                //for(int num = 1; num<=9; num++){
-                for( int num : allowed_values[free_] ){
+                for(int num = 1; num<=9; num++){
                     grid[free_] = num;
                     if(is_valid(free_)){
                         backtrack();
@@ -512,9 +563,10 @@ void test(int av[3][9]){
 int main(){
     std::cout << "-- main --\n";
 
+
     //std::string test_pre = "000075400000000008080190000300001060000000034000068170204000603900000020530200000";
-    std::string test = "000075400000000008080190000300001060000000034000068170204000603900000020530200000";
-    std::string test_s = "693875412145632798782194356357421869816957234429368175274519683968743521531286947";
+    //std::string test = "000075400000000008080190000300001060000000034000068170204000603900000020530200000";
+    //std::string test_s = "693875412145632798782194356357421869816957234429368175274519683968743521531286947";
 
     //std::string test   = "300000000050703008000028070700000043000000000003904105400300800100040000968000200";
     //std::string test_s = "387419526259763418641528379716285943594631782823974165472396851135842697968157234";
@@ -522,13 +574,12 @@ int main(){
     //std::string test =   "302609005500730000000000900000940000000000109000057060008500006000000003019082040";
     //std::string test_s = "382619475594738621176425938863941752457263189921857364738594216245176893619382547";
 
-    /*
-    std::string test =   "530000008007000030200006901000500200090370004000981000300040560000090000000007080";
-    std::string test_s = "536419728917825436248736951781564293695372814423981675379148562852693147164257389";
+    //std::string test =   "530000008007000030200006901000500200090370004000981000300040560000090000000007080";
+    //std::string test_s = "536419728917825436248736951781564293695372814423981675379148562852693147164257389";
 
     std::string test =   "008310900095000160000000005000400000000080049006072000000001030000240607001008200";
     std::string test_s = "468315972795824163132697485819453726257186349346972851924761538583249617671538294";
-    */
+
     //std::string test =   "030605000600090002070100006090000000810050069000000080400003020900020005000908030";
     //std::string test_s=  "239645817641897352578132496796281543812354769354769281467513928983426175125978634";
 
@@ -538,7 +589,6 @@ int main(){
 
 
     Sudoku s;
-    //s.solve(test_pre);
     auto start = std::chrono::high_resolution_clock::now();
     std::string solution = s.solve(test);
     auto stop = std::chrono::high_resolution_clock::now();

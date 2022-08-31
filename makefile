@@ -3,7 +3,7 @@ CC = g++
 CFLAGS = -g -Wall -std=c++11 -pg
 
 
-TARGET = main_faster
+TARGET = main
 
 all: $(TARGET)
 
